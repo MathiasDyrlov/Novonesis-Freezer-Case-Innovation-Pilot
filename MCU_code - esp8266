@@ -1,0 +1,80 @@
+#include <ESP8266WiFi.h>
+
+#include <ThingSpeak.h>
+
+char ssid[] = "ssid";
+char password[] = "password";
+char writeAPIKey[] = "V6SB8SSXPNJCCRZW";
+
+
+// ThingSpeak info
+unsigned long channelID = 3160644;     
+
+
+// Create WiFi and ThingSpeak clients
+WiFiClient client;
+
+// Simulated MPC2000 alarm database
+int alarmCodes[] = {0, 56, 59, 97, 98};
+String alarmDesc[] = {
+  "Supply Air Sensor Open",
+  "Compressor Temperature Too High",
+  "Delta Current Error",
+  "Power Line Error",
+  "Evaporator Motor Overload"
+};
+String alarmType[] = {"Check", "Shutdown", "Log", "Check", "Log"};
+String alarmState[] = {"Active", "Cleared"};
+int trucks[] = {1,2,3,4,5,6,7,8,9,10};
+void setup() {
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
+  ThingSpeak.begin(client);
+
+  connectWiFi();
+}
+
+void loop() {
+  if (WiFi.status() != WL_CONNECTED) {
+    connectWiFi();
+  }
+  int trucknumber  = random(1,10);
+  // Pick a random alarm
+  int i = random(1, 5);
+  int s = random(1, 3);
+  float sensorValue = random(40, 150) + random(0, 100) / 10.0;  // example temp/voltage
+
+  // Assign values to ThingSpeak fields
+  ThingSpeak.setField(1, trucks[trucknumber]);
+  ThingSpeak.setField(2, alarmCodes[i]);          // Alarm Code
+  ThingSpeak.setField(3, alarmDesc[i]);           // Description
+  ThingSpeak.setField(4, alarmType[i]);           // Type
+  ThingSpeak.setField(5, alarmState[s]);          // State
+  ThingSpeak.setField(6, sensorValue);            // Example numeric value
+
+  // Optional: add a status message
+  String statusMsg = "Device TK-SIM sending alarm " + String(alarmCodes[i]);
+  ThingSpeak.setStatus(statusMsg);
+
+  // Send data
+  int x = ThingSpeak.writeFields(channelID, writeAPIKey);
+
+  if (x == 200) {
+    Serial.println("Data sent successfully to ThingSpeak.");
+  } else {
+    Serial.print("Error sending data. HTTP code ");
+    Serial.println(x);
+  }
+
+  delay(60000);  // wait 1 minute between updates
+}
+
+void connectWiFi() {
+  Serial.print("Connecting to WiFi...");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nConnected to WiFi.");
+}
